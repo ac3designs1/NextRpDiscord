@@ -12,14 +12,20 @@ AddEventHandler('onResourceStart', function(resourceName)
     if GetCurrentResourceName() ~= resourceName then return end
     ox:query([[
         CREATE TABLE IF NOT EXISTS `playtime` (
-            `license`    VARCHAR(255) NOT NULL,
-            `discord_id` VARCHAR(30)  DEFAULT NULL,
-            `name`       VARCHAR(255) NOT NULL,
-            `playtime`   INT          NOT NULL DEFAULT 0,
+            `license`     VARCHAR(255) NOT NULL,
+            `discord_id`  VARCHAR(30)  DEFAULT NULL,
+            `name`        VARCHAR(255) NOT NULL,
+            `playtime`    INT          NOT NULL DEFAULT 0,
+            `first_joined` DATETIME    DEFAULT NULL,
             PRIMARY KEY (`license`),
             INDEX `idx_discord_id` (`discord_id`)
         )
     ]], {}, function()
+        -- Add column to existing tables that predate this field
+        ox:query([[
+            ALTER TABLE `playtime`
+            ADD COLUMN IF NOT EXISTS `first_joined` DATETIME DEFAULT NULL
+        ]])
         print('[next-playtime] playtime table ready')
     end)
 end)
@@ -63,11 +69,11 @@ local function startSession(src)
     }
 
     ox:query(
-        [[INSERT INTO playtime (license, discord_id, name, playtime)
-          VALUES (?, ?, ?, 0)
+        [[INSERT INTO playtime (license, discord_id, name, playtime, first_joined)
+          VALUES (?, ?, ?, 0, NOW())
           ON DUPLICATE KEY UPDATE
-            discord_id = COALESCE(VALUES(discord_id), discord_id),
-            name       = VALUES(name)]],
+            discord_id  = COALESCE(VALUES(discord_id), discord_id),
+            name        = VALUES(name)]],
         { license, discordId, name }
     )
 

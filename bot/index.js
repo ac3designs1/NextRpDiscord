@@ -26,14 +26,17 @@ const db = mysql.createPool(dbConfig);
 async function ensureTable() {
     await db.query(`
         CREATE TABLE IF NOT EXISTS \`playtime\` (
-            \`license\`    VARCHAR(255) NOT NULL,
-            \`discord_id\` VARCHAR(30)  DEFAULT NULL,
-            \`name\`       VARCHAR(255) NOT NULL,
-            \`playtime\`   INT          NOT NULL DEFAULT 0,
+            \`license\`      VARCHAR(255) NOT NULL,
+            \`discord_id\`   VARCHAR(30)  DEFAULT NULL,
+            \`name\`         VARCHAR(255) NOT NULL,
+            \`playtime\`     INT          NOT NULL DEFAULT 0,
+            \`first_joined\` DATETIME     DEFAULT NULL,
             PRIMARY KEY (\`license\`),
             INDEX \`idx_discord_id\` (\`discord_id\`)
         )
     `);
+    // Migrate existing tables that don't have first_joined yet
+    await db.query('ALTER TABLE `playtime` ADD COLUMN IF NOT EXISTS `first_joined` DATETIME DEFAULT NULL');
     console.log('✅  playtime table ready');
 }
 
@@ -59,7 +62,7 @@ function isAdmin(member) {
 
 async function buildPlaytimeEmbed(targetUser, requesterId) {
     const [rows] = await db.query(
-        'SELECT name, playtime FROM playtime WHERE discord_id = ?',
+        'SELECT name, playtime, first_joined FROM playtime WHERE discord_id = ?',
         [targetUser.id]
     );
 
@@ -91,13 +94,18 @@ async function buildPlaytimeEmbed(targetUser, requesterId) {
     else if (hours > 0)  timeStr = `${hours}h ${rem}m`;
     else                 timeStr = `${mins} minute${mins !== 1 ? 's' : ''}`;
 
+    const joinedStr = row.first_joined
+        ? `<t:${Math.floor(new Date(row.first_joined).getTime() / 1000)}:D>`
+        : 'Unknown';
+
     return new EmbedBuilder()
         .setColor(0x5865F2)
         .setAuthor({ name: `${displayName}'s Playtime`, iconURL: avatar })
         .addFields(
-            { name: 'Time Played', value: `\`\`\`${timeStr}\`\`\``, inline: false },
-            { name: 'Total Hours', value: `${hours}h`,               inline: true  },
-            { name: 'FiveM Name',  value: row.name,                  inline: true  },
+            { name: 'Time Played',   value: `\`\`\`${timeStr}\`\`\``, inline: false },
+            { name: 'Total Hours',   value: `${hours}h`,               inline: true  },
+            { name: 'First Joined',  value: joinedStr,                 inline: true  },
+            { name: 'FiveM Name',    value: row.name,                  inline: true  },
         )
         .setThumbnail(avatar)
         .setFooter({ text: 'Next Playtime Tracker' })
