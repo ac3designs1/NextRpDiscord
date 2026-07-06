@@ -3,16 +3,23 @@ const { Client, GatewayIntentBits, EmbedBuilder, Colors } = require('discord.js'
 const mysql = require('mysql2/promise');
 
 // ─── DB pool ─────────────────────────────────────────────────────────────────
+// Supports Railway MySQL plugin (MYSQL_URL / MYSQL_* vars) and plain DB_* vars.
 
-const db = mysql.createPool({
-    host:     process.env.DB_HOST     || 'localhost',
-    port:     parseInt(process.env.DB_PORT || '3306'),
-    user:     process.env.DB_USER     || 'root',
-    password: process.env.DB_PASSWORD || '',
-    database: process.env.DB_NAME     || 'fivem',
-    waitForConnections: true,
-    connectionLimit: 5,
-});
+const dbConfig = (() => {
+    const url = process.env.MYSQL_URL || process.env.DATABASE_URL;
+    if (url) return { uri: url, waitForConnections: true, connectionLimit: 5 };
+    return {
+        host:     process.env.MYSQL_HOST     || process.env.DB_HOST     || 'localhost',
+        port:     parseInt(process.env.MYSQL_PORT     || process.env.DB_PORT     || '3306'),
+        user:     process.env.MYSQL_USER     || process.env.DB_USER     || 'root',
+        password: process.env.MYSQL_PASSWORD || process.env.DB_PASSWORD || '',
+        database: process.env.MYSQL_DATABASE || process.env.DB_NAME     || 'fivem',
+        waitForConnections: true,
+        connectionLimit: 5,
+    };
+})();
+
+const db = mysql.createPool(dbConfig);
 
 // ─── Auto-create table ───────────────────────────────────────────────────────
 
