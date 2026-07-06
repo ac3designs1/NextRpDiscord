@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits, EmbedBuilder, Colors } = require('discord.js');
+const { Client, GatewayIntentBits, EmbedBuilder, Colors, REST, Routes, SlashCommandBuilder } = require('discord.js');
 const mysql = require('mysql2/promise');
 
 // ─── DB pool ─────────────────────────────────────────────────────────────────
@@ -114,8 +114,53 @@ async function buildPlaytimeEmbed(targetUser, requesterId) {
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
+// ─── Auto-register slash commands ────────────────────────────────────────────
+
+async function registerCommands() {
+    const commands = [
+        new SlashCommandBuilder()
+            .setName('playtime')
+            .setDescription('Check how long a player has spent on the server')
+            .addUserOption(opt =>
+                opt.setName('user')
+                    .setDescription('The player to check (leave empty for yourself)')
+                    .setRequired(false)
+            ),
+        new SlashCommandBuilder()
+            .setName('playtime-reset')
+            .setDescription('[Admin] Reset playtime for a player or everyone')
+            .addUserOption(opt =>
+                opt.setName('user')
+                    .setDescription('The player to reset (leave empty to reset ALL)')
+                    .setRequired(false)
+            ),
+        new SlashCommandBuilder()
+            .setName('playtime-top')
+            .setDescription('Show the top players by total playtime')
+            .addIntegerOption(opt =>
+                opt.setName('limit')
+                    .setDescription('How many players to show (default 10, max 25)')
+                    .setMinValue(1)
+                    .setMaxValue(25)
+                    .setRequired(false)
+            ),
+    ].map(c => c.toJSON());
+
+    const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
+    const guildId = process.env.GUILD_ID;
+
+    if (guildId) {
+        await rest.put(Routes.applicationGuildCommands(process.env.CLIENT_ID, guildId), { body: commands });
+        console.log(`✅  Slash commands registered to guild ${guildId}`);
+    } else {
+        await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), { body: commands });
+        console.log('✅  Slash commands registered globally');
+    }
+}
+
 client.once('ready', async () => {
     console.log(`✅  Logged in as ${client.user.tag}`);
+    await registerCommands();
     await ensureTable();
 });
 
