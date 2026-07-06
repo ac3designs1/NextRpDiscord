@@ -4,6 +4,21 @@
 
 local sessions = {} -- [source] = { license, discord_id, name, joinTime }
 
+-- ─── Auto-create table ───────────────────────────────────────────────────────
+
+MySQL.query([[
+    CREATE TABLE IF NOT EXISTS `playtime` (
+        `license`    VARCHAR(255) NOT NULL,
+        `discord_id` VARCHAR(30)  DEFAULT NULL,
+        `name`       VARCHAR(255) NOT NULL,
+        `playtime`   INT          NOT NULL DEFAULT 0,
+        PRIMARY KEY (`license`),
+        INDEX `idx_discord_id` (`discord_id`)
+    )
+]], {}, function(ok)
+    print('[xdc-playtimetracker] playtime table ready')
+end)
+
 -- ─── Helpers ───────────────────────────────────────────────────────────────
 
 local function getIdentifier(src, idType)
