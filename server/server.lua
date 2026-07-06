@@ -6,17 +6,20 @@ local sessions = {} -- [source] = { license, discord_id, name, joinTime }
 
 -- ─── Auto-create table ───────────────────────────────────────────────────────
 
-MySQL.query([[
-    CREATE TABLE IF NOT EXISTS `playtime` (
-        `license`    VARCHAR(255) NOT NULL,
-        `discord_id` VARCHAR(30)  DEFAULT NULL,
-        `name`       VARCHAR(255) NOT NULL,
-        `playtime`   INT          NOT NULL DEFAULT 0,
-        PRIMARY KEY (`license`),
-        INDEX `idx_discord_id` (`discord_id`)
-    )
-]], {}, function(ok)
-    print('[next-playtime] playtime table ready')
+AddEventHandler('onResourceStart', function(resourceName)
+    if GetCurrentResourceName() ~= resourceName then return end
+    MySQL.query([[
+        CREATE TABLE IF NOT EXISTS `playtime` (
+            `license`    VARCHAR(255) NOT NULL,
+            `discord_id` VARCHAR(30)  DEFAULT NULL,
+            `name`       VARCHAR(255) NOT NULL,
+            `playtime`   INT          NOT NULL DEFAULT 0,
+            PRIMARY KEY (`license`),
+            INDEX `idx_discord_id` (`discord_id`)
+        )
+    ]], {}, function()
+        print('[next-playtime] playtime table ready')
+    end)
 end)
 
 -- ─── Helpers ───────────────────────────────────────────────────────────────
