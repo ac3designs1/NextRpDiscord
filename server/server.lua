@@ -1,14 +1,16 @@
--- xdc-playtimetracker | server.lua
+-- next-playtime | server.lua
+-- Made by ace
 -- Tracks player sessions and saves playtime to MySQL via oxmysql.
 -- Discord ID is stored so the bot can look up playtime by Discord user.
 
 local sessions = {} -- [source] = { license, discord_id, name, joinTime }
+local ox = exports['oxmysql']
 
 -- ─── Auto-create table ───────────────────────────────────────────────────────
 
 AddEventHandler('onResourceStart', function(resourceName)
     if GetCurrentResourceName() ~= resourceName then return end
-    MySQL.query([[
+    ox:query([[
         CREATE TABLE IF NOT EXISTS `playtime` (
             `license`    VARCHAR(255) NOT NULL,
             `discord_id` VARCHAR(30)  DEFAULT NULL,
@@ -22,7 +24,7 @@ AddEventHandler('onResourceStart', function(resourceName)
     end)
 end)
 
--- ─── Helpers ───────────────────────────────────────────────────────────────
+-- ─── Helpers ─────────────────────────────────────────────────────────────────
 
 local function getIdentifier(src, idType)
     for i = 0, GetNumPlayerIdentifiers(src) - 1 do
@@ -35,23 +37,21 @@ local function getIdentifier(src, idType)
 end
 
 local function formatMinutes(mins)
-    if mins < 60 then
-        return mins .. 'm'
-    end
+    if mins < 60 then return mins .. 'm' end
     local h = math.floor(mins / 60)
     local m = mins % 60
     return h .. 'h ' .. m .. 'm'
 end
 
--- ─── Session start ──────────────────────────────────────────────────────────
+-- ─── Session start ───────────────────────────────────────────────────────────
 
 local function startSession(src)
-    local license    = getIdentifier(src, 'license')
-    local discordId  = getIdentifier(src, 'discord')
-    local name       = GetPlayerName(src) or 'Unknown'
+    local license   = getIdentifier(src, 'license')
+    local discordId = getIdentifier(src, 'discord')
+    local name      = GetPlayerName(src) or 'Unknown'
 
     if not license then
-        print('[xdc-playtimetracker] No license for src ' .. src .. ' – skipping')
+        print('[next-playtime] No license for src ' .. src .. ' – skipping')
         return
     end
 
@@ -62,8 +62,7 @@ local function startSession(src)
         joinTime  = os.time(),
     }
 
-    -- Upsert player record so they always exist in the table
-    MySQL.query(
+    ox:query(
         [[INSERT INTO playtime (license, discord_id, name, playtime)
           VALUES (?, ?, ?, 0)
           ON DUPLICATE KEY UPDATE
@@ -77,7 +76,7 @@ local function startSession(src)
     ))
 end
 
--- ─── Save elapsed time ──────────────────────────────────────────────────────
+-- ─── Save elapsed time ───────────────────────────────────────────────────────
 
 local function saveSession(src, andRemove)
     local s = sessions[src]
@@ -85,13 +84,12 @@ local function saveSession(src, andRemove)
 
     local elapsed = math.floor((os.time() - s.joinTime) / 60)
     if elapsed > 0 then
-        MySQL.query(
+        ox:query(
             'UPDATE playtime SET playtime = playtime + ? WHERE license = ?',
             { elapsed, s.license }
         )
     end
 
-    -- Reset the join-time so the next periodic save doesn't double-count
     if andRemove then
         sessions[src] = nil
     else
@@ -99,10 +97,8 @@ local function saveSession(src, andRemove)
     end
 end
 
--- ─── Events ─────────────────────────────────────────────────────────────────
+-- ─── Events ──────────────────────────────────────────────────────────────────
 
--- Works for both ESX and standalone setups.
--- esx:playerLoaded fires after all identifiers are available.
 AddEventHandler('esx:playerLoaded', function(playerId)
     startSession(playerId)
 end)
@@ -110,7 +106,6 @@ end)
 -- Fallback for non-ESX servers
 AddEventHandler('playerJoining', function()
     local src = source
-    -- Short delay so all identifiers are populated
     SetTimeout(2000, function()
         if not sessions[src] and GetPlayerName(src) then
             startSession(src)
@@ -123,7 +118,7 @@ AddEventHandler('playerDropped', function()
     saveSession(src, true)
 end)
 
--- ─── Periodic save (every 5 minutes) ────────────────────────────────────────
+-- ─── Periodic save (every 5 minutes) ─────────────────────────────────────────
 
 Citizen.CreateThread(function()
     while true do
@@ -132,17 +127,16 @@ Citizen.CreateThread(function()
             if GetPlayerName(src) then
                 saveSession(src, false)
             else
-                -- Player is gone without triggering playerDropped
                 sessions[src] = nil
             end
         end
     end
 end)
 
--- ─── Debug command (server console only) ────────────────────────────────────
+-- ─── Debug command (server console only) ─────────────────────────────────────
 
 RegisterCommand('np_sessions', function(src)
-    if src ~= 0 then return end -- console only
+    if src ~= 0 then return end
     print('[next-playtime] Active sessions:')
     for s, data in pairs(sessions) do
         local elapsed = math.floor((os.time() - data.joinTime) / 60)
