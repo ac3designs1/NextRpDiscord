@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS `playtime` (
 Add to `server.cfg`:
 
 ```
-ensure xdc-playtimetracker
+ensure next-playtime
 ```
 
 Requires `oxmysql` to be running (already in your `[ox]` folder).

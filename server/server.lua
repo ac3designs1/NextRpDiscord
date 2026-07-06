@@ -16,7 +16,7 @@ MySQL.query([[
         INDEX `idx_discord_id` (`discord_id`)
     )
 ]], {}, function(ok)
-    print('[xdc-playtimetracker] playtime table ready')
+    print('[next-playtime] playtime table ready')
 end)
 
 -- ─── Helpers ───────────────────────────────────────────────────────────────
@@ -69,7 +69,7 @@ local function startSession(src)
         { license, discordId, name }
     )
 
-    print(('[xdc-playtimetracker] Session started – %s (%s | discord:%s)'):format(
+    print(('[next-playtime] Session started – %s (%s | discord:%s)'):format(
         name, license, discordId or 'none'
     ))
 end
@@ -138,9 +138,9 @@ end)
 
 -- ─── Debug command (server console only) ────────────────────────────────────
 
-RegisterCommand('pt_sessions', function(src)
+RegisterCommand('np_sessions', function(src)
     if src ~= 0 then return end -- console only
-    print('[xdc-playtimetracker] Active sessions:')
+    print('[next-playtime] Active sessions:')
     for s, data in pairs(sessions) do
         local elapsed = math.floor((os.time() - data.joinTime) / 60)
         print(('  src=%d  name=%-20s  discord=%-20s  session=%s'):format(
