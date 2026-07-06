@@ -1,8 +1,8 @@
 fx_version 'cerulean'
 game 'gta5'
 
-name        'xdc-playtimetracker'
-description 'FiveM Playtime Tracker with Discord Bot'
+name        'Next Playtime Tracker'
+description 'Next Playtime Tracker - FiveM Playtime Tracking with Discord Bot'
 version     '1.0.0'
 author      'xdc'
 

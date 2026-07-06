@@ -1,7 +1,7 @@
 {
-  "name": "xdc-playtimetracker-bot",
+  "name": "next-playtime-tracker",
   "version": "1.0.0",
-  "description": "FiveM Playtime Tracker Discord Bot",
+  "description": "Next Playtime Tracker - FiveM Discord Bot",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
