@@ -49,11 +49,6 @@ function formatMinutes(totalMins) {
     return hStr + mStr;
 }
 
-function progressBar(current, max, length = 20) {
-    const filled = Math.round((current / max) * length);
-    return '█'.repeat(filled) + '░'.repeat(length - filled);
-}
-
 function isAdmin(member) {
     const roleId = process.env.ADMIN_ROLE_ID;
     if (!roleId) return member.permissions.has('Administrator');
@@ -68,45 +63,44 @@ async function buildPlaytimeEmbed(targetUser, requesterId) {
         [targetUser.id]
     );
 
-    const isSelf = targetUser.id === requesterId;
-    const displayName = targetUser.displayName ?? targetUser.username;
+    const isSelf        = targetUser.id === requesterId;
+    const displayName   = targetUser.displayName ?? targetUser.username;
+    const avatar        = targetUser.displayAvatarURL({ size: 128 });
 
     if (!rows.length || rows[0].playtime === 0) {
         return new EmbedBuilder()
-            .setColor(Colors.Orange)
-            .setTitle('No playtime found')
+            .setColor(0x2b2d31)
             .setDescription(
                 isSelf
-                    ? "You haven't played on the server yet — or your account hasn't been linked."
+                    ? "You haven't played on the server yet."
                     : `**${displayName}** hasn't played on the server yet.`
             )
-            .setThumbnail(targetUser.displayAvatarURL())
+            .setFooter({ text: 'Next Playtime Tracker', iconURL: avatar })
             .setTimestamp();
     }
 
     const row   = rows[0];
     const mins  = row.playtime;
     const hours = Math.floor(mins / 60);
+    const days  = Math.floor(hours / 24);
+    const rem   = mins % 60;
 
-    // Milestones for the progress bar (next 10-hour checkpoint)
-    const nextMilestone = Math.ceil(hours / 10) * 10 || 10;
-    const bar = progressBar(hours % 10, 10);
+    // Build a clean human-readable time string
+    let timeStr;
+    if (days > 0)        timeStr = `${days}d ${hours % 24}h ${rem}m`;
+    else if (hours > 0)  timeStr = `${hours}h ${rem}m`;
+    else                 timeStr = `${mins} minute${mins !== 1 ? 's' : ''}`;
 
     return new EmbedBuilder()
         .setColor(0x5865F2)
-        .setAuthor({
-            name:    isSelf ? 'Your Playtime' : `${displayName}'s Playtime`,
-            iconURL: targetUser.displayAvatarURL(),
-        })
-        .setTitle(`${isSelf ? '🕹️ Your Stats' : `🕹️ ${displayName}'s Stats`}`)
+        .setAuthor({ name: `${displayName}'s Playtime`, iconURL: avatar })
         .addFields(
-            { name: '⏱️ Total Playtime',  value: formatMinutes(mins),                    inline: true  },
-            { name: '📅 Hours',            value: `${hours}h ${mins % 60}m`,              inline: true  },
-            { name: '\u200b',              value: '\u200b',                               inline: false },
-            { name: `Progress to ${nextMilestone}h`, value: `\`${bar}\` ${hours % 10}/10h`, inline: false },
+            { name: 'Time Played', value: `\`\`\`${timeStr}\`\`\``, inline: false },
+            { name: 'Total Hours', value: `${hours}h`,               inline: true  },
+            { name: 'FiveM Name',  value: row.name,                  inline: true  },
         )
-        .setThumbnail(targetUser.displayAvatarURL({ size: 128 }))
-        .setFooter({ text: `FiveM Name: ${row.name}` })
+        .setThumbnail(avatar)
+        .setFooter({ text: 'Next Playtime Tracker' })
         .setTimestamp();
 }
 
