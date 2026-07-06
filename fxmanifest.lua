@@ -4,7 +4,7 @@ game 'gta5'
 name        'Next Playtime Tracker'
 description 'Next Playtime Tracker - FiveM Playtime Tracking with Discord Bot'
 version     '1.0.0'
-author      'xdc'
+author      'ace'
 
 server_scripts {
     'server/server.lua'

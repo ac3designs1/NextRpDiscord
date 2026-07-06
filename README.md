@@ -1,4 +1,5 @@
 # Next Playtime Tracker
+> Made by ace
 
 FiveM playtime tracker with a Discord bot.  
 Since Discord is required to join the server, every player is already linked — no manual setup needed.
