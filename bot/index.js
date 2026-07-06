@@ -119,8 +119,17 @@ client.once('ready', async () => {
     await ensureTable();
 });
 
+const ALLOWED_CHANNEL = '1511322614889713784';
+
 client.on('interactionCreate', async interaction => {
     if (!interaction.isChatInputCommand()) return;
+
+    if (interaction.channelId !== ALLOWED_CHANNEL) {
+        return interaction.reply({
+            content: `❌ Playtime commands can only be used in <#${ALLOWED_CHANNEL}>.`,
+            ephemeral: true,
+        });
+    }
 
     // ── /playtime [user] ────────────────────────────────────────────────────
     if (interaction.commandName === 'playtime') {
