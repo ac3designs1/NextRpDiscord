@@ -7,7 +7,7 @@ const mysql = require('mysql2/promise');
 
 const dbConfig = (() => {
     const url = process.env.MYSQL_URL || process.env.DATABASE_URL;
-    if (url) return { uri: url, waitForConnections: true, connectionLimit: 5 };
+    if (url) return { uri: url, waitForConnections: true, connectionLimit: 5, connectTimeout: 8000 };
     return {
         host:     process.env.MYSQL_HOST     || process.env.DB_HOST     || 'localhost',
         port:     parseInt(process.env.MYSQL_PORT     || process.env.DB_PORT     || '3306'),
@@ -16,10 +16,19 @@ const dbConfig = (() => {
         database: process.env.MYSQL_DATABASE || process.env.DB_NAME     || 'fivem',
         waitForConnections: true,
         connectionLimit: 5,
+        connectTimeout: 8000,
     };
 })();
 
 const db = mysql.createPool(dbConfig);
+
+/** Race a promise against a timeout so Discord interactions never hang indefinitely */
+function withTimeout(promise, ms = 8000) {
+    return Promise.race([
+        promise,
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Database query timed out')), ms)),
+    ]);
+}
 
 // ─── Auto-create table ───────────────────────────────────────────────────────
 
@@ -184,13 +193,13 @@ client.on('interactionCreate', async interaction => {
 
         const target = interaction.options.getUser('user') ?? interaction.user;
 
-        try {
-            const embed = await buildPlaytimeEmbed(target, interaction.user.id);
-            await interaction.editReply({ embeds: [embed] });
-        } catch (err) {
-            console.error('[playtime]', err);
-            await interaction.editReply('❌ Database error — please try again later.');
-        }
+    try {
+        const embed = await withTimeout(buildPlaytimeEmbed(target, interaction.user.id));
+        await interaction.editReply({ embeds: [embed] });
+    } catch (err) {
+        console.error('[playtime]', err);
+        await interaction.editReply({ content: `❌ ${err.message.includes('timed out') ? 'Could not reach the database — please try again in a moment.' : 'Database error — please try again later.'}` });
+    }
         return;
     }
 
@@ -208,11 +217,11 @@ client.on('interactionCreate', async interaction => {
         const target = interaction.options.getUser('user');
 
         try {
-            if (target) {
-                const [res] = await db.query(
-                    'UPDATE playtime SET playtime = 0 WHERE discord_id = ?',
-                    [target.id]
-                );
+        if (target) {
+            const [res] = await withTimeout(db.query(
+                'UPDATE playtime SET playtime = 0 WHERE discord_id = ?',
+                [target.id]
+            ));
 
                 if (res.affectedRows === 0) {
                     return interaction.editReply(`⚠️ No record found for ${target}.`);
@@ -226,9 +235,9 @@ client.on('interactionCreate', async interaction => {
                     .setTimestamp();
 
                 return interaction.editReply({ embeds: [embed] });
-            } else {
-                // Reset ALL
-                await db.query('UPDATE playtime SET playtime = 0');
+        } else {
+            // Reset ALL
+            await withTimeout(db.query('UPDATE playtime SET playtime = 0'));
 
                 const embed = new EmbedBuilder()
                     .setColor(Colors.Red)
@@ -251,10 +260,10 @@ client.on('interactionCreate', async interaction => {
         const limit = interaction.options.getInteger('limit') ?? 10;
 
         try {
-            const [rows] = await db.query(
-                'SELECT name, discord_id, playtime FROM playtime ORDER BY playtime DESC LIMIT ?',
-                [limit]
-            );
+        const [rows] = await withTimeout(db.query(
+            'SELECT name, discord_id, playtime FROM playtime ORDER BY playtime DESC LIMIT ?',
+            [limit]
+        ));
 
             if (!rows.length) {
                 return interaction.editReply('No playtime data yet.');
