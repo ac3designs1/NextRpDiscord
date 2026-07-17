@@ -72,8 +72,9 @@ local function startSession(src)
         [[INSERT INTO playtime (license, discord_id, name, playtime, first_joined)
           VALUES (?, ?, ?, 0, NOW())
           ON DUPLICATE KEY UPDATE
-            discord_id  = COALESCE(VALUES(discord_id), discord_id),
-            name        = VALUES(name)]],
+            discord_id   = COALESCE(VALUES(discord_id), discord_id),
+            name         = VALUES(name),
+            first_joined = IF(first_joined IS NULL, NOW(), first_joined)]],
         { license, discordId, name }
     )
 
